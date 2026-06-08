@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>테스트 - 사용자 인증</title>
+</head>
+<body>
+    <h1>사용자 인증 테스트</h1>
+    
+    <div id="auth-status">확인 중...</div>
+
+    <hr>
+    
+    <h2>회원가입</h2>
+    <input type="text" id="reg-username" placeholder="아이디">
+    <input type="password" id="reg-password" placeholder="비밀번호">
+    <button onclick="register()">가입하기</button>
+
+    <hr>
+
+    <h2>로그인</h2>
+    <input type="text" id="login-username" placeholder="아이디">
+    <input type="password" id="login-password" placeholder="비밀번호">
+    <label><input type="checkbox" id="auto-login"> 자동 로그인</label>
+    <button onclick="login()">로그인</button>
+
+    <hr>
+
+    <button onclick="logout()">로그아웃</button>
+
+    <script>
+        async function checkStatus() {
+            const res = await fetch('/api/me');
+            const data = await res.json();
+            const statusDiv = document.getElementById('auth-status');
+            if (data.user) {
+                statusDiv.innerText = `로그인됨: ${data.user.username} (ID: ${data.user.id})`;
+            } else {
+                statusDiv.innerText = '로그인되지 않음';
+            }
+        }
+
+        async function register() {
+            const username = document.getElementById('reg-username').value;
+            const password = document.getElementById('reg-password').value;
+            const res = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            alert(data.success ? '가입 성공' : '가입 실패: ' + data.message);
+        }
+
+        async function login() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            const autoLogin = document.getElementById('auto-login').checked;
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, autoLogin })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert('로그인 성공');
+                checkStatus();
+            } else {
+                alert('로그인 실패: ' + data.message);
+            }
+        }
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            alert('로그아웃됨');
+            checkStatus();
+        }
+
+        checkStatus();
+    </script>
+</body>
+</html>
