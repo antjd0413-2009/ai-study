@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>프로젝트 진행 상황</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
+        .progress-container { width: 100%; background-color: #f3f3f3; border-radius: 5px; margin-bottom: 20px; }
+        .progress-bar { width: 0%; height: 30px; background-color: #4caf50; text-align: center; line-height: 30px; color: white; border-radius: 5px; }
+        ul { list-style-type: none; padding: 0; }
+        li { padding: 10px; border-bottom: 1px solid #ddd; }
+        li.completed { text-decoration: line-through; color: #888; }
+        li.current { font-weight: bold; color: #2196f3; }
+    </style>
+</head>
+<body>
+    <h1>프로젝트 진행 상황</h1>
+    <div class="progress-container">
+        <div class="progress-bar">0%</div>
+    </div>
+    <ul>
+        <li class="current">1. 환경 설정 및 데이터베이스 스키마 설계 (Neon DB 연결 및 테이블 생성)</li>
+        <li>2. 사용자 인증 기능 구현 (회원가입, 로그인, 자동 로그인)</li>
+        <li>3. 게시글 및 댓글 기능 구현 (CRUD 및 추천 기능)</li>
+        <li>4. 프론트엔드 UI 구현 (HTML, CSS, TypeScript)</li>
+        <li>5. 최종 통합 테스트 및 검증</li>
+    </ul>
+</body>
+</html>
