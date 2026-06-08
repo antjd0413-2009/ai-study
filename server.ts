@@ -23,6 +23,141 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.static('public'));
 
+// --- 게시글 (Posts) ---
+
+// 게시글 목록 조회 (추천수 포함)
+app.get('/api/posts', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT p.*, u.username, 
+      (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as likes_count
+      FROM posts p
+      JOIN users u ON p.user_id = u.id
+      ORDER BY p.created_at DESC
+    `);
+    res.json({ success: true, posts: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// 게시글 상세 조회
+app.get('/api/posts/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const postResult = await pool.query(`
+      SELECT p.*, u.username,
+      (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as likes_count
+      FROM posts p
+      JOIN users u ON p.user_id = u.id
+      WHERE p.id = $1
+    `, [id]);
+    
+    if (postResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: '게시글을 찾을 수 없습니다.' });
+    }
+
+    const commentsResult = await pool.query(`
+      SELECT c.*, u.username
+      FROM comments c
+      JOIN users u ON c.user_id = u.id
+      WHERE c.post_id = $1
+      ORDER BY c.created_at ASC
+    `, [id]);
+
+    res.json({ 
+      success: true, 
+      post: postResult.rows[0], 
+      comments: commentsResult.rows 
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// 게시글 작성
+app.post('/api/posts', async (req, res) => {
+  const userId = req.cookies.userId;
+  if (!userId) return res.status(401).json({ success: false, message: '로그인이 필요합니다.' });
+  
+  const { title, content } = req.body;
+  try {
+    const result = await pool.query(
+      'INSERT INTO posts (user_id, title, content) VALUES ($1, $2, $3) RETURNING *',
+      [userId, title, content]
+    );
+    res.json({ success: true, post: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// 게시글 수정
+app.put('/api/posts/:id', async (req, res) => {
+  const userId = req.cookies.userId;
+  const { id } = req.params;
+  const { title, content } = req.body;
+  try {
+    const check = await pool.query('SELECT user_id FROM posts WHERE id = $1', [id]);
+    if (check.rows.length === 0) return res.status(404).json({ success: false });
+    if (check.rows[0].user_id != userId) return res.status(403).json({ success: false, message: '권한이 없습니다.' });
+
+    await pool.query('UPDATE posts SET title = $1, content = $2 WHERE id = $3', [title, content, id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+});
+
+// 게시글 삭제
+app.delete('/api/posts/:id', async (req, res) => {
+  const userId = req.cookies.userId;
+  const { id } = req.params;
+  try {
+    const check = await pool.query('SELECT user_id FROM posts WHERE id = $1', [id]);
+    if (check.rows.length === 0) return res.status(404).json({ success: false });
+    if (check.rows[0].user_id != userId) return res.status(403).json({ success: false, message: '권한이 없습니다.' });
+
+    await pool.query('DELETE FROM posts WHERE id = $1', [id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+});
+
+// --- 댓글 (Comments) ---
+
+app.post('/api/comments', async (req, res) => {
+  const userId = req.cookies.userId;
+  if (!userId) return res.status(401).json({ success: false });
+  const { post_id, content } = req.body;
+  try {
+    await pool.query('INSERT INTO comments (post_id, user_id, content) VALUES ($1, $2, $3)', [post_id, userId, content]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+});
+
+// --- 추천 (Likes) ---
+
+app.post('/api/posts/:id/like', async (req, res) => {
+  const userId = req.cookies.userId;
+  if (!userId) return res.status(401).json({ success: false, message: '로그인이 필요합니다.' });
+  const { id } = req.params;
+  try {
+    // 이미 추천했는지 확인
+    const check = await pool.query('SELECT id FROM likes WHERE post_id = $1 AND user_id = $2', [id, userId]);
+    if (check.rows.length > 0) {
+      return res.status(400).json({ success: false, message: '이미 추천한 게시글입니다.' });
+    }
+    await pool.query('INSERT INTO likes (post_id, user_id) VALUES ($1, $2)', [id, userId]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+});
+
 // 회원가입
 app.post('/api/register', async (req, res) => {
   const { username, password } = req.body;

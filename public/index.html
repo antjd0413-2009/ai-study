@@ -2,31 +2,26 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>테스트 - 사용자 인증</title>
+    <title>테스트 - 게시판 기능</title>
 </head>
 <body>
-    <h1>사용자 인증 테스트</h1>
+    <h1>게시판 기능 테스트</h1>
     
     <div id="auth-status">확인 중...</div>
+    <button onclick="logout()">로그아웃</button>
 
     <hr>
     
-    <h2>회원가입</h2>
-    <input type="text" id="reg-username" placeholder="아이디">
-    <input type="password" id="reg-password" placeholder="비밀번호">
-    <button onclick="register()">가입하기</button>
+    <h2>새 게시글 작성</h2>
+    <input type="text" id="post-title" placeholder="제목">
+    <textarea id="post-content" placeholder="내용"></textarea>
+    <button onclick="createPost()">작성</button>
 
     <hr>
 
-    <h2>로그인</h2>
-    <input type="text" id="login-username" placeholder="아이디">
-    <input type="password" id="login-password" placeholder="비밀번호">
-    <label><input type="checkbox" id="auto-login"> 자동 로그인</label>
-    <button onclick="login()">로그인</button>
-
-    <hr>
-
-    <button onclick="logout()">로그아웃</button>
+    <h2>게시글 목록</h2>
+    <button onclick="loadPosts()">목록 새로고침</button>
+    <div id="post-list"></div>
 
     <script>
         async function checkStatus() {
@@ -40,43 +35,94 @@
             }
         }
 
-        async function register() {
-            const username = document.getElementById('reg-username').value;
-            const password = document.getElementById('reg-password').value;
-            const res = await fetch('/api/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const data = await res.json();
-            alert(data.success ? '가입 성공' : '가입 실패: ' + data.message);
-        }
-
-        async function login() {
-            const username = document.getElementById('login-username').value;
-            const password = document.getElementById('login-password').value;
-            const autoLogin = document.getElementById('auto-login').checked;
-            const res = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password, autoLogin })
-            });
-            const data = await res.json();
-            if (data.success) {
-                alert('로그인 성공');
-                checkStatus();
-            } else {
-                alert('로그인 실패: ' + data.message);
-            }
-        }
-
         async function logout() {
             await fetch('/api/logout', { method: 'POST' });
             alert('로그아웃됨');
             checkStatus();
         }
 
+        async function createPost() {
+            const title = document.getElementById('post-title').value;
+            const content = document.getElementById('post-content').value;
+            const res = await fetch('/api/posts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, content })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert('작성 성공');
+                loadPosts();
+            } else {
+                alert('작성 실패: ' + data.message);
+            }
+        }
+
+        async function loadPosts() {
+            const res = await fetch('/api/posts');
+            const data = await res.json();
+            const listDiv = document.getElementById('post-list');
+            listDiv.innerHTML = '';
+            data.posts.forEach(post => {
+                const item = document.createElement('div');
+                item.style.border = '1px solid #ccc';
+                item.style.margin = '10px';
+                item.style.padding = '10px';
+                item.innerHTML = `
+                    <h3>${post.title} (추천: ${post.likes_count})</h3>
+                    <p>작성자: ${post.username}</p>
+                    <button onclick="likePost(${post.id})">추천하기</button>
+                    <button onclick="showDetail(${post.id})">상세보기</button>
+                    <div id="detail-${post.id}"></div>
+                `;
+                listDiv.appendChild(item);
+            });
+        }
+
+        async function likePost(id) {
+            const res = await fetch(`/api/posts/${id}/like`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                alert('추천 완료');
+                loadPosts();
+            } else {
+                alert('추천 실패: ' + data.message);
+            }
+        }
+
+        async function showDetail(id) {
+            const res = await fetch(`/api/posts/${id}`);
+            const data = await res.json();
+            const detailDiv = document.getElementById(`detail-${id}`);
+            if (data.success) {
+                detailDiv.innerHTML = `
+                    <p>${data.post.content}</p>
+                    <h4>댓글</h4>
+                    <div id="comments-${id}">
+                        ${data.comments.map(c => `<p><b>${c.username}:</b> ${c.content}</p>`).join('')}
+                    </div>
+                    <input type="text" id="comment-input-${id}" placeholder="댓글 입력">
+                    <button onclick="addComment(${id})">댓글 작성</button>
+                `;
+            }
+        }
+
+        async function addComment(postId) {
+            const content = document.getElementById(`comment-input-${postId}`).value;
+            const res = await fetch('/api/comments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ post_id: postId, content })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert('댓글 작성 성공');
+                showDetail(postId);
+            }
+        }
+
         checkStatus();
+        loadPosts();
     </script>
 </body>
 </html>
