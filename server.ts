@@ -22,6 +22,7 @@ const pool = new Pool({
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.static('public'));
+app.use('/dist', express.static('dist'));
 
 // --- 게시글 (Posts) ---
 
